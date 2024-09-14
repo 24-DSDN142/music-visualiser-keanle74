@@ -1,107 +1,150 @@
-let triImg
-let firstRun = true
+let triImg;
+let firstRun = true;
 let counterThreshold = 320;
 let stars = [];
 let starCount = 200;
 let minDistance = 50;
 let imageScale = 1;
 
-// vocal, drum, bass, and other are volumes ranging from 0 to 100
 function draw_one_frame(words, vocal, drum, bass, other, counter) {
-createCanvas(1920,1080);
-background(0)
-if(firstRun){
-triImg = loadImage('Asset1.png');
-firstRun = false
-generateStars()
-}
+  createCanvas(1920, 1080);
 
-function generateStars() {
-  let attempts = 0; // Keep track of attempts to prevent infinite loops
+  // Background color transition
+  let startColor = color(0, 0, 0); // Black
+  let midColor1 = color(0, 0, 50); // Darker blue
+  let midColor2 = color(60, 0, 60); // Darker purple
+  let endColor = color(150, 0, 80); // Darker pink
 
-  while (stars.length < starCount && attempts < starCount * 10) {
-    let starX = random(0, width);     // Random x position within canvas
-    let starY = random(0, height);    // Random y position within canvas
-    let starScale = random(0.1, 0.3); // Random scale for each star
-    let starRadius = 25 * starScale;  // Radius of the star, considering its scale
-    
-    // Check if this new star is too close to any existing star
-    let overlapping = false;
-    for (let i = 0; i < stars.length; i++) {
-      let otherStar = stars[i];
-      let distance = dist(starX, starY, otherStar.x, otherStar.y);
-      let combinedRadius = starRadius + (25 * otherStar.scale) + minDistance;
-      if (distance < combinedRadius) {
-        overlapping = true;
-        break;
-      }
-    }
-    
-    // If the star isn't overlapping, add it to the list
-    if (!overlapping) {
-      stars.push({ x: starX, y: starY, scale: starScale, originalX: starX, originalY: starY });
-    }
-
-    attempts++;
-  }
-}
-
-for (let i = 0; i < stars.length; i++) {
-  let star = stars[i];
-  
-  // After counterThreshold is reached, stars start moving based on drum and bass
-  if (counter > counterThreshold) {
-    let xMoveAmount = map(drum, 0, 100, -50, 50);  
-    let yMoveAmount = map(drum, 0, 100, -50, 50);  
-    
-    // Oscillate around the original x and y positions
-    star.x = star.originalX + sin(frameCount * 0.1) * xMoveAmount;
-    star.y = star.originalY + sin(frameCount * 0.1) * yMoveAmount;
-
-    // Ensure stars stay within the canvas
-    star.x = constrain(star.x, 0, width);
-    star.y = constrain(star.y, 0, height);
-  }
-
-  // Draw the star
-  Star(star.x, star.y, star.scale);
-  
-}
-
-
-push();
-
-  translate(960, 540)
-  if (counter < counterThreshold){
-    imageScale = map(counter, 0, counterThreshold, 0.01, 1.25); // Scale from 0.01 to 0.1
+  // Transition between colors based on vocal volume
+  let bgColor;
+  if (vocal <= 50) {
+    bgColor = lerpColor(startColor, midColor1, vocal / 50);
   } else {
-    imageScale = 1.25; // Fixed size after threshold
+    bgColor = lerpColor(midColor1, midColor2, (vocal - 50) / 50);
+    bgColor = lerpColor(bgColor, endColor, (vocal - 50) / 50);
+  }
+
+  // Flash effect for high vocal volume
+  let flashThreshold = 75; // Threshold for flickering effect
+  let flashIntensity = vocal > flashThreshold ? map(vocal, flashThreshold, 100, 0.2, 0.8) : 0;
+  let flickerColor = lerpColor(bgColor, color(255, 255, 255), flashIntensity); // White flash
+
+  background(flickerColor);
+
+  push();
+  let bgShiftX = map(sin(frameCount * 0.001), -1, 1, -50, 50);
+  let bgShiftY = map(cos(frameCount * 0.001), -1, 1, -50, 50);
+  translate(bgShiftX, bgShiftY);
+  pop();
+
+  if (firstRun) {
+    triImg = loadImage('Asset1.png');
+    firstRun = false;
+    generateStars();
+  }
+
+  function generateStars() {
+    let attempts = 0;
+
+    while (stars.length < starCount && attempts < starCount * 10) {
+      let starX = random(0, width);
+      let starY = random(0, height);
+      let starScale = random(0.1, 0.3);
+      let starRadius = 25 * starScale;
+
+      let overlapping = false;
+      for (let i = 0; i < stars.length; i++) {
+        let otherStar = stars[i];
+        let distance = dist(starX, starY, otherStar.x, otherStar.y);
+        let combinedRadius = starRadius + (25 * otherStar.scale) + minDistance;
+        if (distance < combinedRadius) {
+          overlapping = true;
+          break;
+        }
+      }
+
+      if (!overlapping) {
+        stars.push({ x: starX, y: starY, scale: starScale, originalX: starX, originalY: starY });
+      }
+
+      attempts++;
+    }
+  }
+
+  for (let i = 0; i < stars.length; i++) {
+    let star = stars[i];
+
+    if (counter > counterThreshold) {
+      let xMoveAmount = map(drum, 0, 100, -50, 50);
+      let yMoveAmount = map(other, 0, 100, -50, 50);
+
+      star.x = star.originalX + sin(frameCount * 0.1) * xMoveAmount;
+      star.y = star.originalY + sin(frameCount * 0.1) * yMoveAmount;
+    }
+
+    // Update star color based on vocal volume
+    let starColor = color(map(other, 0, 100, 0, 255), map(other, 0, 100, 0, 255), 255);
+
+    Star(star.x, star.y, star.scale, vocal);
+  }
+
+  let pulse = map(bass, 0, 100, 0.9, 1.1);
+  push();
+  translate(width / 2, height / 2);
+  scale(pulse);
+  noFill();
+  stroke(255, 100);
+  ellipse(0, 0, 600, 600);
+  pop();
+
+  push();
+  translate(960, 540);
+  if (counter < counterThreshold) {
+    imageScale = map(counter, 0, counterThreshold, 0.01, 1.25);
+  } else {
+    imageScale = 1.25;
   }
   scale(imageScale);
   imageMode(CENTER);
-  image(triImg, 0, 0); // Draw the image centered on the canvas
+  image(triImg, 0, 0);
   pop();
 }
 
-
-
-
-
-function Star(starX= 0,starY = 0,starScale = 1){
+function Star(starX = 0, starY = 0, starScale = 1, vocal) {
   push();
-  translate(starX,starY);
+  translate(starX, starY);
   scale(starScale);
-  fill(255)
-  ellipse(0,0,25,25)
-  
-  strokeWeight(4)
-  stroke(255)
-  line(0,-50,0,50)
-  line(-50,0,50,0)
-  line(25,-25,-25,25)
-  line(-25,-25,25,25)
+
+  let minColor = color(0); // Black
+  let midColor = color(255, 255, 0); // Yellow
+  let maxColor = color(255); // White
+
+  // Map vocal levels to color range
+  let starColor;
+  if (vocal <= 33) {
+    starColor = lerpColor(minColor, midColor, vocal / 33);
+  } else if (vocal <= 66) {
+    starColor = lerpColor(midColor, maxColor, (vocal - 33) / 33);
+  } else {
+    starColor = lerpColor(maxColor, color(255, 255, 255), (vocal - 66) / 34); // Fade to white at highest levels
+  }
+
+  fill(starColor);
+  stroke(starColor);
+  ellipse(0, 0, 25, 25);
+  strokeWeight(4);
+  line(0, -50, 0, 50);
+  line(-50, 0, 50, 0);
+  line(25, -25, -25, 25);
+  line(-25, -25, 25, 25);
+
   pop();
 }
+
+
+
+
+
 
 
 
